@@ -140,3 +140,5 @@ leaflet() %>%
 #               fillColor = pal(lom_riso_catastale_shapes$rice_dens),
 #               stroke = TRUE, weight = 1, color = "#2D408F",
 #               fillOpacity = .7)
+
+# Exploring rice production in Northern Italy with #opendata from Regione Lombardia and the @LeafletJS package in #rstats. Blog post soon 🌾☀️:) https://www.dati.lombardia.it
