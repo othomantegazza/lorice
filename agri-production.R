@@ -39,6 +39,15 @@ save(lom_agri, file = lom_agri_path)
 #   group_by(COMUNE) %>% 
 #   summarize(sup_used = sum(SUP_UTILIZZATA))
 
+# Come sono codificate le produzioni di riso?
+# riso <- 
+#   lom_agri %>%
+#   map(~filter(., UTILIZZO %>% 
+#                 str_detect("^RISO")) %>% 
+#         pull(UTILIZZO) %>% 
+#         unique()) 
+
+# riso
 
 lom_riso <- 
   lom_agri %>% 
@@ -46,6 +55,13 @@ lom_riso <-
   filter(str_detect(UTILIZZO, pattern = "^RISO")) %>% # pull(UTILIZZO) %>% unique()
   group_by(COMUNE) %>%
   summarize(sup_used = sum(SUP_UTILIZZATA))
+
+lom_riso_catastale <- 
+  lom_agri %>% 
+  reduce(rbind) %>% 
+  filter(str_detect(UTILIZZO, pattern = "^RISO")) %>% # pull(UTILIZZO) %>% unique()
+  group_by(COMUNE) %>%
+  summarize(sup_used = sum(SUP_CATASTALE))
   
 # This object is heavy!
 rm(lom_agri)
@@ -63,7 +79,13 @@ lom_istat <-
            toupper(),
          geometry = geometry %>% st_transform("+init=epsg:4326"))
 
-
+lom_istat_simple <- 
+  sf::st_read("data/Limiti_2016_WGS84_g/Com2016_WGS84_g") %>% 
+  filter(COD_REG == 3) %>% 
+  mutate(COMUNE = COMUNE %>%
+           as.character() %>% 
+           toupper(),
+         geometry = geometry %>% st_transform("+init=epsg:4326"))
 # merge and plot ----------------------------------------------------------
 
 # mil_riso_shape <- 
@@ -75,7 +97,8 @@ lom_istat <-
 
 lom_riso_shapes <- 
   lom_riso %>% 
-  full_join(lom_istat, by = "COMUNE") %>%
+  # full_join(lom_istat, by = "COMUNE") %>%
+  full_join(lom_istat_simple, by = "COMUNE") %>%
   mutate(rice_dens = sup_used/SHAPE_Area) %>%
   filter(!geometry %>% map_lgl(is.null)) %>% 
   as.data.frame()
@@ -83,18 +106,37 @@ lom_riso_shapes <-
 
 pal <- colorNumeric("viridis", NULL)
 
-leaflet() %>% 
-  addTiles() %>% 
-  addPolygons(data = mil_riso_shape$geometry,
-              fillColor = pal(mil_riso_shape$rice_dens),
-              stroke = FALSE,
-              fillOpacity = .7)
+# leaflet() %>% 
+#   addTiles() %>% 
+#   addPolygons(data = mil_riso_shape$geometry,
+#               fillColor = pal(mil_riso_shape$rice_dens),
+#               stroke = FALSE,
+#               fillOpacity = .7)
 
 
 leaflet() %>% 
-  addTiles() %>% 
+  # addTiles() %>%
+  # addProviderTiles(providers$CartoDB.Positron) %>%
+  addProviderTiles(providers$Stamen.Toner) %>%
   addPolygons(data = lom_riso_shapes$geometry,
               fillColor = pal(lom_riso_shapes$rice_dens),
-              stroke = FALSE,
+              stroke = TRUE, weight = 1, color = "#2D408F",
               fillOpacity = .7)
 
+
+# lom_riso_catastale_shapes <- 
+#   lom_riso_catastale %>% 
+#   # full_join(lom_istat, by = "COMUNE") %>%
+#   full_join(lom_istat_simple, by = "COMUNE") %>%
+#   mutate(rice_dens = sup_used/SHAPE_Area) %>%
+#   filter(!geometry %>% map_lgl(is.null)) %>% 
+#   as.data.frame()
+
+# leaflet() %>% 
+#   # addTiles() %>%
+#   # addProviderTiles(providers$CartoDB.Positron) %>%
+#   addProviderTiles(providers$Stamen.Toner) %>%
+#   addPolygons(data = lom_riso_catastale_shapes$geometry,
+#               fillColor = pal(lom_riso_catastale_shapes$rice_dens),
+#               stroke = TRUE, weight = 1, color = "#2D408F",
+#               fillOpacity = .7)
