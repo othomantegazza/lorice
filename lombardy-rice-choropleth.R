@@ -94,12 +94,26 @@ lom_rice_shapes <-
   # exclude municipalities that did't match
   # if any
   filter(!geometry %>% map_lgl(is.null)) %>% 
+  # estimate area in km2 from shape
+  # the area in the dataset have no units
+  # I'm using this column to guess that they are
+  # in square meters
+  mutate(shape_area_km2 = geometry %>%
+           sf::st_area() %>% 
+           units::set_units(value = km^2)) %>% 
   as.data.frame()
-
+         
 
 # Leaflet app -------------------------------------------------------------
 
-pal <- colorNumeric("viridis", NULL)
+# pal <- colorNumeric("viridis", NULL)
+
+pal <-
+  scico::scico(n = 100,
+               palette = "tokyo",
+               direction = -1) %>%
+  colorNumeric(NULL,
+               na.color = "#7A82A6")#"#E0E0D2")
 
 leaflet() %>% 
   # addTiles() %>%
@@ -107,7 +121,10 @@ leaflet() %>%
   addProviderTiles(providers$Stamen.Toner) %>%
   addPolygons(data = lom_rice_shapes$geometry,
               fillColor = pal(lom_rice_shapes$rice_dens),
-              stroke = TRUE, weight = 1, color = "#2D408F",
-              fillOpacity = .7)
+              stroke = TRUE,
+              weight = 1,
+              color = "#2D408F",
+              fillOpacity = .8)
+
 
 
