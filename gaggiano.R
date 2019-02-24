@@ -21,7 +21,7 @@ if(!file.exists(milan_shapes_path)) {
          "?filename=particelle_agricole_milano.zip") %>% 
     download.file(destfile = temp)
   
-  temp <- temp %>% unzip(exdir = temp2)
+  temp2 <- temp %>% unzip(exdir = temp2)
   milan_shapes <- temp2 %>% sf::st_read()
   
   save(milan_shapes, file = milan_shapes_path)
