@@ -63,7 +63,7 @@ if(!file.exists(municip_path)) {
     download.file(destfile = temp)
   
   temp %>% unzip(exdir = municip_path)
-  rm(temp, temp2)
+  rm(temp)
   
 }
 
@@ -102,12 +102,13 @@ lom_rice_shapes <-
            sf::st_area() %>% 
            units::set_units(value = km^2)) %>% 
   as.data.frame()
-         
+
+save(lom_rice_shapes, file = "data/lom_rice_shapes.Rdata")
 
 # Leaflet app -------------------------------------------------------------
 
-# pal <- colorNumeric("viridis", NULL)
-
+# Tokyo Palette, It has green colors,
+# looks good for agricolture ;)
 pal <-
   scico::scico(n = 100,
                palette = "tokyo",
@@ -115,16 +116,65 @@ pal <-
   colorNumeric(NULL,
                na.color = "#7A82A6")#"#E0E0D2")
 
-leaflet() %>% 
-  # addTiles() %>%
-  # addProviderTiles(providers$CartoDB.Positron) %>%
-  addProviderTiles(providers$Stamen.Toner) %>%
+# Useful additiona infos in label:
+# municipality and area
+labels <- 
+  paste0("<strong>", lom_rice_shapes$COMUNE, "</strong><br/>",
+         "rice cultivated area:<br>",
+         # Transform m2 to km2
+         lom_rice_shapes$sup_used %>%
+           `/`(., 10^6) %>%
+           round(2), #%>%
+           # NA to 0 for the label
+           # {case_when(rlang::are_na(.) ~ 0,
+           #            TRUE ~ .)},
+           # Lable
+         " Km<sup>2</sup>") %>%
+  lapply(htmltools::HTML)
+
+attribution <-
+  paste0('Map tiles by <a href="http://stamen.com">Stamen Design</a>, ',
+         '<a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a>',
+         ' &mdash; Map data &copy; ',
+         '<a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+         ' &mdash; Data by ',
+         '<a href="https://www.dati.lombardia.it/">Regione Lombardia</a>, ',
+         '<a href="https://www.dati.gov.it/content/italian-open-data-license-v20">IODL v2.0</a>')
+
+stamen_options <- 
+  tileOptions(variant = "toner",
+              subdomains = "abcd",
+              ext = "png",
+              maxZoom = 20)
+m_lom <- 
+  leaflet() %>% 
+  setView(lat = 45.6, ln = 9.7, zoom = 9) %>% 
+  addTiles(urlTemplate = "//stamen-tiles-{s}.a.ssl.fastly.net/{variant}/{z}/{x}/{y}.{ext}",
+           attribution = attribution,
+           options = stamen_options) %>%
   addPolygons(data = lom_rice_shapes$geometry,
               fillColor = pal(lom_rice_shapes$rice_dens),
               stroke = TRUE,
               weight = 1,
               color = "#2D408F",
-              fillOpacity = .8)
+              fillOpacity = .8,
+              label = labels,
+              labelOptions = labelOptions(
+                style = list("font-weight" = "normal",
+                             padding = "3px 8px"),
+                textsize = "15px",
+                direction = "auto")) %>% 
+  addLegend(pal = pal,
+            values = lom_rice_shapes$rice_dens,
+            labFormat = labelFormat(prefix = "", suffix = "%",
+                                    between = ", ",
+                                    transform = function(x) {100 * x}),
+            title = "Land dedicated<br>to Rice\nProduction",
+            position = "bottomright")
 
+m_lom
+# Use this in css rules to specify one column
+# In the legend of leaflet (addLegend)
+# div.info.legend.leaflet-control br {clear: both;}
 
 
