@@ -1,6 +1,7 @@
 library(tidyverse)
 library(sf)
 library(leaflet)
+library(rlang)
 
 # MAKE A DIRECTORY NAMED DATA to STORE DATA!!!!!
 
@@ -124,12 +125,10 @@ labels <-
          # Transform m2 to km2
          lom_rice_shapes$sup_used %>%
            `/`(., 10^6) %>%
-           round(2), #%>%
+           round(2) %>%
            # NA to 0 for the label
-           # {case_when(rlang::are_na(.) ~ 0,
-           #            TRUE ~ .)},
-           # Lable
-         " Km<sup>2</sup>") %>%
+           {case_when(rlang::are_na(.) ~ paste(NA_character_, "(none?)"),
+                      TRUE ~ paste(., " Km<sup>2</sup>"))}) %>%
   lapply(htmltools::HTML)
 
 attribution <-
