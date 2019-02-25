@@ -131,6 +131,7 @@ labels <-
                       TRUE ~ paste(., " Km<sup>2</sup>"))}) %>%
   lapply(htmltools::HTML)
 
+# cite sources
 attribution <-
   paste0('Map tiles by <a href="http://stamen.com">Stamen Design</a>, ',
          '<a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a>',
@@ -140,11 +141,22 @@ attribution <-
          '<a href="https://www.dati.lombardia.it/">Regione Lombardia</a>, ',
          '<a href="https://www.dati.gov.it/content/italian-open-data-license-v20">IODL v2.0</a>')
 
+
 stamen_options <- 
   tileOptions(variant = "toner",
               subdomains = "abcd",
               ext = "png",
               maxZoom = 20)
+
+percent_label <- labelOptions(style = list("font-weight" = "normal",
+                                           padding = "3px 8px"),
+                              textsize = "15px",
+                              direction = "auto")
+
+# save all options for re-use in blog
+save(pal, labels, attribution, stamen_options, percent_label,
+     file = "data/lom_cloropleth_options.Rdata")
+
 m_lom <- 
   leaflet() %>% 
   setView(lat = 45.6, ln = 9.7, zoom = 9) %>% 
@@ -158,11 +170,7 @@ m_lom <-
               color = "#2D408F",
               fillOpacity = .8,
               label = labels,
-              labelOptions = labelOptions(
-                style = list("font-weight" = "normal",
-                             padding = "3px 8px"),
-                textsize = "15px",
-                direction = "auto")) %>% 
+              labelOptions = percent_label) %>% 
   addLegend(pal = pal,
             values = lom_rice_shapes$rice_dens,
             labFormat = labelFormat(prefix = "", suffix = "%",
