@@ -169,6 +169,7 @@ m_lom <-
               weight = 1,
               color = "#2D408F",
               fillOpacity = .8,
+              highlight = highlightOptions(weight = 5),
               label = labels,
               labelOptions = percent_label) %>% 
   addLegend(pal = pal,

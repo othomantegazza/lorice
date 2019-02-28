@@ -51,6 +51,7 @@ rice_prod <-
 
 rice_shapes <- 
   rice_prod %>% 
+  # small fixes to join ISTAT shapefile
   mutate(COMUNE = COMUNE %>% str_replace("´", "'")) %>%
   mutate(COMUNE = COMUNE %>% 
            str_replace("E'", "È") %>% 
@@ -58,38 +59,16 @@ rice_shapes <-
            str_replace("O'", "Ò")) %>% 
   left_join(shapes_istat) %>% 
   filter(!geometry %>% map_lgl(is.null)) %>% 
-  mutate(rice_dens = acri/SHAPE_Area) %>% 
-  filter(rice_dens > 0)
-
-# missing
-# rice_prod_missing <- 
-#   rice_prod %>% 
-#   filter(!COMUNE %in% shapes_istat$COMUNE)
-# 
-# apostrofo <- 
-#   rice_prod_missing %>% 
-#   mutate(COMUNE = COMUNE %>% str_replace("´", "'")) %>% 
-#   left_join(shapes_istat) %>% 
-#   filter(!geometry %>% map_lgl(is.null))
-# 
-# rice_prod_missing <- 
-#   rice_prod %>% 
-#   mutate(COMUNE = COMUNE %>% str_replace("´", "'")) %>% 
-#   filter(!COMUNE %in% shapes_istat$COMUNE)
-# 
-# accento <- 
-#   rice_prod_missing %>% 
-#   mutate(COMUNE = COMUNE %>% 
-#            str_replace("E'", "È") %>% 
-#            str_replace("A'", "À") %>% 
-#            str_replace("O'", "Ò")) %>% 
-#   left_join(shapes_istat) %>% 
-#   filter(geometry %>% map_lgl(is.null))
-
-# rice_shapes <- 
-#   rice_shapes %>% 
-#   bind_rows(apostrofo) %>% 
-#   bind_rows(accento)
+  # Turn Acres into square meters
+  mutate(m2_surface = acri %>% 
+           units::set_units(value = acres) %>% 
+           units::set_units(value = m^2)) %>% 
+  # because also the shape area is in square meters
+  mutate(SHAPE_Area = SHAPE_Area %>% 
+           units::set_units(value = m^2)) %>% 
+  mutate(rice_dens = m2_surface/SHAPE_Area) %>% 
+  # most of municipalities don't grow rice
+  filter(units::drop_units(rice_dens)> 0)
 
 save(rice_shapes, file = "data/rice-ente-shapes.Rdata")
 
@@ -101,32 +80,63 @@ pal <- scico::scico(n = 100,
                     direction = -1) %>% colorNumeric(NULL)
 
 # add an html label
-labels <- sprintf(
-  "<strong>%s</strong><br/>%g ha",
-  rice_shapes$COMUNE, rice_shapes$acri
-) %>% lapply(htmltools::HTML)
+labels <- 
+  paste0("<strong>", rice_shapes$COMUNE, "</strong><br/>",
+         "rice cultivated area:<br>",
+         # Transform m2 to km2
+         rice_shapes$m2_surface %>%
+           `/`(., 10^6) %>%
+           round(2) %>%
+           # NA to 0 for the label
+           {case_when(rlang::are_na(.) ~ paste(NA_character_, "(none?)"),
+                      TRUE ~ paste(., " Km<sup>2</sup>"))}) %>%
+  lapply(htmltools::HTML)
 
+# cite sources
+attribution <-
+  paste0('Map tiles by <a href="http://stamen.com">Stamen Design</a>, ',
+         '<a href="http://creativecommons.org/licenses/by/3.0">CC BY 3.0</a>',
+         ' &mdash; Map data &copy; ',
+         '<a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+         ' &mdash; Data &copy; ',
+         '<a href="https://www.enterisi.it/servizi/notizie/notizie_homepage.aspx">',
+         'Ente Nazionale Risi</a>')
+
+
+stamen_options <- 
+  tileOptions(variant = "toner",
+              subdomains = "abcd",
+              ext = "png",
+              maxZoom = 20)
+
+percent_label <- 
+  labelOptions(style = list("font-weight" = "normal",
+                            padding = "3px 8px"),
+               textsize = "15px",
+               direction = "auto")
 
 m <- 
   leaflet() %>% 
   setView(lat = 45.30, ln = 8.60, zoom = 10) %>% 
-  # addTiles() %>%
-  # addProviderTiles(providers$CartoDB.Positron) %>%
-  # addProviderTiles(providers$Stamen.Toner) %>%
-  addProviderTiles(providers$Stamen.TonerLite) %>%
+  addTiles(urlTemplate = "//stamen-tiles-{s}.a.ssl.fastly.net/{variant}/{z}/{x}/{y}.{ext}",
+           attribution = attribution,
+           options = stamen_options) %>%
   addPolygons(data = rice_shapes$geometry,
-              fillColor = pal(rice_shapes$rice_dens),
+              fillColor = pal(rice_shapes$rice_dens %>% units::drop_units()),
               stroke = TRUE, weight = 2,
-              # color = "#2D408F",
               color = "black",
               fillOpacity = .8,
-              highlight = highlightOptions(
-                weight = 5),
+              highlight = highlightOptions(weight = 5),
               label = labels,
-              labelOptions = labelOptions(
-                style = list("font-weight" = "normal", padding = "3px 8px"),
-                textsize = "15px",
-                direction = "auto")) 
+              labelOptions = percent_label) %>% 
+  addLegend(pal = pal,
+            values = rice_shapes$rice_dens %>% units::drop_units(),
+            labFormat = labelFormat(prefix = "", suffix = "%",
+                                    between = ", ",
+                                    transform = function(x) {100 * x}),
+            title = "Land dedicated<br>to Rice\nProduction",
+            position = "bottomright")
 
+m
 # rice_shapes %>% arrange(desc(rice_dens)) %>% head() %>% View()
 
