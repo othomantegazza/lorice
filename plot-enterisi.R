@@ -5,8 +5,30 @@ library(leaflet)
 
 # read shapes -------------------------------------------------------------
 
+link_istat <- paste0("http://www.istat.it/storage/cartografia/",
+                     "confini_amministrativi/archivio-confini/",
+                     "generalizzati/2016/Limiti_2016_WGS84_g.zip")
+
+
+municip_path <- "data/istat_municipalities"
+
+if(!file.exists(municip_path)) {
+  
+  temp <- tempfile()
+  
+  link_istat %>% 
+    download.file(destfile = temp)
+  
+  temp %>% unzip(exdir = municip_path)
+  rm(temp)
+  
+}
+
 shapes_istat <- 
-  sf::st_read("data/Limiti_2016_WGS84/Com2016_WGS84") %>% 
+  paste0(municip_path,
+         "/Limiti_2016_WGS84_g/Com2016_WGS84_g/",
+         "Com2016_WGS84_g.shp") %>% 
+  sf::st_read() %>% 
   mutate(COMUNE = COMUNE %>%
            as.character() %>% 
            toupper(),
@@ -15,6 +37,8 @@ shapes_istat <-
 
 # load rice production ----------------------------------------------------
 
+# I downloaded these data manually
+# from https://www.enterisi.it/
 load("data/enterisi-riceprod.Rdata")
 
 rice_prod <- 
@@ -71,23 +95,21 @@ save(rice_shapes, file = "data/rice-ente-shapes.Rdata")
 
 # visualize ---------------------------------------------------------------
 
-# pal <- colorNumeric("viridis", NULL)
+# Tokyo palettes with green shades
 pal <- scico::scico(n = 100,
                     palette = "tokyo",
                     direction = -1) %>% colorNumeric(NULL)
 
-# add an html panel
+# add an html label
 labels <- sprintf(
   "<strong>%s</strong><br/>%g ha",
   rice_shapes$COMUNE, rice_shapes$acri
 ) %>% lapply(htmltools::HTML)
 
-# color palette breaks
-# vals <- rice_shapes$rice_dens %>% quantile(probs = seq(0, 1, 0.2))
-vals <- rice_shapes$rice_dens %>% range() %>% {seq(from = .[1], to = .[2], length.out = 5)}
-breaks <- vals %>% scales::scientific(2)
 
-leaflet() %>% 
+m <- 
+  leaflet() %>% 
+  setView(lat = 45.30, ln = 8.60, zoom = 10) %>% 
   # addTiles() %>%
   # addProviderTiles(providers$CartoDB.Positron) %>%
   # addProviderTiles(providers$Stamen.Toner) %>%
@@ -104,13 +126,7 @@ leaflet() %>%
               labelOptions = labelOptions(
                 style = list("font-weight" = "normal", padding = "3px 8px"),
                 textsize = "15px",
-                direction = "auto")) %>% 
-  addLegend(pal = pal, 
-            values =  rice_shapes$rice_dens,
-            # bins = vals, labels = breaks,
-            labFormat = labelFormat(digits = 6),
-            opacity = 0.7, title = NULL,
-            position = "bottomright")
+                direction = "auto")) 
 
 # rice_shapes %>% arrange(desc(rice_dens)) %>% head() %>% View()
 
