@@ -70,7 +70,7 @@ rice_shapes <-
   # most of municipalities don't grow rice
   filter(units::drop_units(rice_dens)> 0)
 
-save(rice_shapes, file = "data/rice-ente-shapes.Rdata")
+save(rice_shapes, file = "data/italy-rice-choropleth-shapes.Rdata")
 
 # visualize ---------------------------------------------------------------
 
@@ -102,18 +102,23 @@ attribution <-
          '<a href="https://www.enterisi.it/servizi/notizie/notizie_homepage.aspx">',
          'Ente Nazionale Risi</a>')
 
-
+# tile options
 stamen_options <- 
   tileOptions(variant = "toner",
               subdomains = "abcd",
               ext = "png",
               maxZoom = 20)
 
+# custom label
 percent_label <- 
   labelOptions(style = list("font-weight" = "normal",
                             padding = "3px 8px"),
                textsize = "15px",
                direction = "auto")
+
+# save options 
+save(pal, labels, attribution, stamen_options, percent_label,
+     file = "data/italy-rice-choropleth-options.Rdata")
 
 m <- 
   leaflet() %>% 
@@ -137,6 +142,5 @@ m <-
             title = "Land dedicated<br>to Rice\nProduction",
             position = "bottomright")
 
-m
 # rice_shapes %>% arrange(desc(rice_dens)) %>% head() %>% View()
 
